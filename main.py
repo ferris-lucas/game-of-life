@@ -24,8 +24,8 @@ import random
 pygame.init()
 
 # Constants
-SCREEN_WIDTH, SCREEN_HEIGHT = 600, 600 # the desired screen dimmension
-TILE_SIZE = 10 # the desired size of each block in the grid (in pixels)
+SCREEN_WIDTH, SCREEN_HEIGHT = 1200, 1200 # the desired screen dimmension
+TILE_SIZE = 5 # the desired size of each block in the grid (in pixels)
 GRID_THICKNESS = 1
 ROWS, COLS = SCREEN_WIDTH // TILE_SIZE, SCREEN_HEIGHT // TILE_SIZE
 
@@ -33,6 +33,7 @@ ROWS, COLS = SCREEN_WIDTH // TILE_SIZE, SCREEN_HEIGHT // TILE_SIZE
 GRAY = (128, 128, 128)
 BLACK = (0, 0, 0)
 YELLOW = (255, 255, 0)
+GREEN = (0, 255, 0)
 
 # Simulation Parameters
 FPS = 60 # frame rate for simulation
@@ -77,7 +78,7 @@ def draw_positions(screen, grid_positions):
     """
     for position in grid_positions:
         grid_x, grid_y = position
-        pygame.draw.rect(screen, YELLOW, (grid_x * TILE_SIZE, grid_y * TILE_SIZE, TILE_SIZE, TILE_SIZE))
+        pygame.draw.rect(screen, GREEN, (grid_x * TILE_SIZE, grid_y * TILE_SIZE, TILE_SIZE, TILE_SIZE))
 
 def generate_random_grid_positions():
     """
@@ -97,6 +98,25 @@ def generate_random_grid_positions():
                 random_pos = (x, y)
                 random_grid_positions.add(random_pos)
     return random_grid_positions
+
+def generate_pattern():
+    """
+    Generate a set of positions in a pattern within the grid.
+    """
+    pattern_grid_positions = set()
+    for y in range(0, ROWS):
+        for x in range(0, COLS):
+                if x == COLS // 2 or y == ROWS // 2: # cross pattern
+                    pattern_grid_positions.add((x,y))
+                if x == y or x == COLS - y: # x pattern
+                    pattern_grid_positions.add((x,y))
+                if ((ROWS - 10) // 2) ** 2 < (x - COLS // 2) ** 2 + (y - ROWS // 2) ** 2 < (ROWS // 2) ** 2: # circle pattern
+                    pattern_grid_positions.add((x,y))
+                if y == (ROWS // 2) - (x - COLS // 2) ** 2 // 100: # parabolic pattern
+                    pattern_grid_positions.add((x,y))
+                if y == (ROWS // 2) - (x - COLS // 2) ** 4 // 1000000: # forth grade equation pattern
+                    pattern_grid_positions.add((x,y))
+    return pattern_grid_positions
 
 def count_live_neighbors(grid_positions, position):
     """
@@ -128,7 +148,6 @@ def count_live_neighbors(grid_positions, position):
 
     return count_of_live_neighbors
 
-
 def apply_rules(grid_positions):
     """
     Apply Conway's Game of Life rules to update the grid positions.
@@ -155,7 +174,7 @@ def apply_rules(grid_positions):
 
     return updated_grid_positions
 
-def handle_event(event, grid_positions, count, playing, running):
+def handle_event(event, grid_positions, count, playing, running, iteration):
     """
     Handle various events in the game.
 
@@ -172,7 +191,7 @@ def handle_event(event, grid_positions, count, playing, running):
     # quit event -> exit the game
     if event.type == pygame.QUIT:
         running = False
-    # keydown event -> pause, clear, or randomize the grid
+    # keydown event -> pause, clear, randomize, or insert pattern the grid
     elif event.type == pygame.KEYDOWN:
         if event.key == pygame.K_SPACE:
             playing = not playing
@@ -180,13 +199,19 @@ def handle_event(event, grid_positions, count, playing, running):
             grid_positions.clear()
             playing = False
             count = 0
+            iteration = 0
         elif event.key == pygame.K_r:
             grid_positions = generate_random_grid_positions()
+            iteration = 0
+        elif event.key == pygame.K_p:
+            grid_positions = generate_pattern()
+            iteration = 0
+            playing = False
     # mouse click event -> add or remove a position from the grid
     elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
         grid_positions = handle_mouse_click(grid_positions)
 
-    return grid_positions, count, playing, running
+    return grid_positions, count, playing, running, iteration
 
 def handle_mouse_click(grid_positions):
     """
@@ -224,21 +249,23 @@ def main():
     running = True
     playing = False
     count = 0 # keeps track of the number of frames passed since the last grid update
+    iteration = 0 # keeps track of the number of iterations passed since the start of the simulation
 
     while running:
         clock.tick(FPS)
         
-        pygame.display.set_caption("Conway's Game of Life Simulation - Playing" if playing else "Conway's Game of Life Simulation - Paused")
+        pygame.display.set_caption(f"Conway's Game of Life Simulation - Playing - Iteration {iteration}" if playing else "Conway's Game of Life Simulation - Paused")
 
         if playing:
             count = count + 1
+            iteration = iteration + 1
         
         if count >= UPDATE_FREQ:
             count = 0
             grid_positions =  apply_rules(grid_positions)
 
         for event in pygame.event.get():
-            grid_positions, count, playing, running = handle_event(event, grid_positions, count, playing, running)
+            grid_positions, count, playing, running, iteration = handle_event(event, grid_positions, count, playing, running, iteration)
 
         screen.fill(GRAY)
         draw_grid(screen)
